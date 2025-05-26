@@ -6,7 +6,7 @@ import { UserTableActions } from "@/components/users/UserTableActions";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { getScreen } from "@/axios/api.js";
+import { getScreen } from "@/http/api.js";
 import { Company } from "@/types";
 import { jsPDF } from "jspdf";
 import { autoTable } from "jspdf-autotable";

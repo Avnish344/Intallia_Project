@@ -5,7 +5,6 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { RouterProvider } from "react-router-dom";
 import router from '@/routes/AppRoutes';
-import PrivateRoute from "@/routes/PrivateRoute";
 
 // Query Client Configuration
 const queryClient = new QueryClient({

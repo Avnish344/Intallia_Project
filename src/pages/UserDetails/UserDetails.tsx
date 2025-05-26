@@ -8,7 +8,7 @@ import { EducationForm } from "@/components/login/EducationForm";
 import { CustomButton } from "@/components/login/CustomButton";
 import skipIcon from "@/assets/skip.svg";
 import nextIcon from "@/assets/next.svg";
-import { getScreen } from "@/axios/api.js";
+import { getScreen } from "@/http/api.js";
 import {useQuery} from "@tanstack/react-query";
 
 

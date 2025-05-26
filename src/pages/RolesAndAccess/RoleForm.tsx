@@ -1,73 +1,159 @@
 import { MainLayout } from "@/components/layout/MainLayout";
-import { GradientButton } from "@/components/ui/gradient-button";
-import { SearchBar } from "@/components/ui/search-bar";
-import { FC, useState } from "react";
+import { FC, useEffect } from "react";
 import { useForm } from "react-hook-form";
-import { AccessControl } from "./AccessControl";
+import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useNavigate, useParams } from "react-router-dom";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { getRoleById, createRole, updateRole } from "@/http/api";
 import SidebarActions from "@/components/users/SidebarActions";
+import { AccessControl } from "./AccessControl";
 
-interface RoleForm {
-  name: string;
-  companyName: string;
-  email: string;
-  phone: string;
-  role: string;
-  description: string;
-}
+const roleSchema = z.object({
+  name: z.string().min(1, "Name is required"),
+  companyName: z.string().min(1, "Company Name is required"),
+  email: z.string().email("Invalid email"),
+  phone: z.string().min(1, "Phone is required"),
+  role: z.string().min(1, "Role is required"),
+  description: z.string().optional(),
+  accessControls: z.object({
+    userManagement: z.boolean(),
+    simulation: z.boolean(),
+    package: z.boolean(),
+    payment: z.boolean(),
+  }),
+});
 
-export const RoleForm: FC = () => {
-  const { register } = useForm<RoleForm>();
-  const [accessControls, setAccessControls] = useState({
+type RoleFormValues = z.infer<typeof roleSchema>;
+
+const defaultValues: RoleFormValues = {
+  name: "",
+  companyName: "",
+  email: "",
+  phone: "",
+  role: "",
+  description: "",
+  accessControls: {
     userManagement: true,
     simulation: true,
     package: true,
     payment: false,
+  },
+};
+
+export const RoleForm: FC = () => {
+  const { UserGroupId: id } = useParams<{ UserGroupId: string }>();
+  console.log(id);
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+
+  const { data: roleData, isLoading } = useQuery({
+    queryKey: ["UserGroupId", id],
+    queryFn: () =>
+      getRoleById({
+        JSON: JSON.stringify({
+          Header: [{ UserGroupId: id, CompanyId: "Intallia24" }],
+          Response: [{ ResponseText: "", ErrorCode: "" }],
+        }),
+      }),
+    enabled: false,
   });
 
-  //sidebar button events
-  const handleAddNewRole = () => {
-    console.log("Add New Role clicked");
+  console.log(roleData);
+
+  const {
+    register,
+    handleSubmit,
+    setValue,
+    watch,
+    reset,
+    formState: { errors, isSubmitting },
+  } = useForm<RoleFormValues>({
+    resolver: zodResolver(roleSchema),
+    defaultValues,
+  });
+
+  useEffect(() => {
+    if (roleData) {
+      reset({
+        ...roleData,
+        accessControls: {
+          userManagement: roleData.accessControls?.userManagement ?? true,
+          simulation: roleData.accessControls?.simulation ?? true,
+          package: roleData.accessControls?.package ?? true,
+          payment: roleData.accessControls?.payment ?? false,
+        },
+      });
+    }
+  }, [roleData, reset]);
+
+  const createMutation = useMutation({
+    mutationFn: (data: RoleFormValues) => createRole(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["roles"] });
+      navigate("/user-role-&-access");
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: (data: RoleFormValues) => updateRole(id!, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["roles"] });
+      navigate("/user-role-&-access");
+    },
+  });
+
+  const handleAddNewRole = (data: RoleFormValues) => {
+    if (id) {
+      updateMutation.mutate(data);
+    } else {
+      createMutation.mutate(data);
+    }
   };
 
-  const handleSaveAndExit = () => {
-    console.log("Save & Exit clicked");
+  const accessControls = watch("accessControls");
+  const setAccessControl = (
+    key: keyof RoleFormValues["accessControls"],
+    value: boolean,
+  ) => {
+    setValue(`accessControls.${key}`, value, { shouldDirty: true });
   };
 
-  const handleSave = () => {
-    console.log("Save clicked");
-  };
-
-  const handleDelete = () => {
-    console.log("Delete clicked");
-  };
-
-  const actions: {
-    variant: "primary" | "outline" | "danger";
-    text: string;
-    onClick?: () => void;
-  }[] = [
+  const actions = [
     {
-      variant: "primary",
-      text: "Add New Role",
-      onClick: handleAddNewRole,
+      variant: "primary" as const,
+      text: id ? "Update Role" : "Add New Role",
+      onClick: handleSubmit(handleAddNewRole),
     },
     {
-      variant: "outline",
+      variant: "outline" as const,
       text: "Save & Exit",
-      onClick: handleSaveAndExit,
+      onClick: handleSubmit(handleAddNewRole),
     },
-    { variant: "outline", text: "Save", onClick: handleSave },
-    { variant: "danger", text: "Delete", onClick: handleDelete },
+    {
+      variant: "outline" as const,
+      text: "Save",
+      onClick: handleSubmit(handleAddNewRole),
+    },
+    {
+      variant: "danger" as const,
+      text: "Delete",
+      onClick: () => alert("Delete clicked"),
+    },
   ];
 
   return (
     <MainLayout>
       <div className="bg-[#F8F9FA] flex items-start gap-[35px] overflow-hidden flex-wrap p-8">
         <div className="flex flex-col items-stretch grow shrink-0 basis-0 w-fit">
-          <h1 className="page-heading">Add New Role</h1>
+          <h1 className="page-heading">{id ? "Edit Role" : "Add New Role"}</h1>
           <div className="shadow-[0px_3.5px_5.5px_0px_rgba(0,0,0,0.02)] bg-white flex items-stretch gap-5 flex-wrap justify-between mt-[30px] p-[31px] rounded-[15px] h-[88vh] sticky top-0 overflow-y-scroll">
             <div className="max-md:max-w-full xl:w-[69%]">
-              <form className="w-full font-normal max-md:max-w-full">
+              <form
+                className="w-full font-normal max-md:max-w-full"
+                onSubmit={handleSubmit(handleAddNewRole)}
+                noValidate
+              >
                 <div className="flex w-full gap-10 flex-wrap max-md:max-w-full">
                   <div className="flex min-w-60 flex-col items-stretch flex-1 shrink basis-[0%] max-md:max-w-full">
                     <label className="flex items-center gap-1">
@@ -83,8 +169,12 @@ export const RoleForm: FC = () => {
                       className="self-stretch flex-1 shrink basis-[0%] rounded border border-[#E5E5EA] bg-white min-h-12 w-full gap-2 text-base text-[#7C7C80] tracking-[-0.32px] leading-none mt-2 px-4 py-3.5 border-solid"
                       placeholder="Enter name"
                     />
+                    {errors.name && (
+                      <span className="text-xs text-red-500">
+                        {errors.name.message}
+                      </span>
+                    )}
                   </div>
-
                   <div className="flex min-w-60 flex-col items-stretch flex-1 shrink basis-[0%] max-md:max-w-full">
                     <label className="flex items-center gap-1">
                       <span className="text-[#444446] text-[15px] leading-none tracking-[-0.24px]">
@@ -99,10 +189,13 @@ export const RoleForm: FC = () => {
                       className="self-stretch flex-1 shrink basis-[0%] rounded border border-[#E5E5EA] bg-white min-h-12 w-full gap-2 text-base text-[#7C7C80] tracking-[-0.32px] leading-none mt-2 px-4 py-3.5 border-solid"
                       placeholder="Enter company name"
                     />
+                    {errors.companyName && (
+                      <span className="text-xs text-red-500">
+                        {errors.companyName.message}
+                      </span>
+                    )}
                   </div>
                 </div>
-
-                {/* Email and Phone */}
                 <div className="flex w-full gap-8 flex-wrap mt-[30px] max-md:max-w-full">
                   <div className="flex min-w-60 flex-col items-stretch flex-1 shrink basis-[0%] max-md:max-w-full">
                     <label className="flex items-center gap-1">
@@ -119,8 +212,12 @@ export const RoleForm: FC = () => {
                       className="self-stretch flex-1 shrink basis-[0%] rounded border border-[#E5E5EA] bg-white min-h-12 w-full gap-2 text-base text-[#7C7C80] tracking-[-0.32px] leading-none mt-2 px-4 py-3.5 border-solid"
                       placeholder="Enter email"
                     />
+                    {errors.email && (
+                      <span className="text-xs text-red-500">
+                        {errors.email.message}
+                      </span>
+                    )}
                   </div>
-
                   <div className="flex min-w-60 flex-col items-stretch flex-1 shrink basis-[0%] max-md:max-w-full">
                     <label className="flex items-center gap-1">
                       <span className="text-[#444446] text-[15px] leading-none tracking-[-0.24px]">
@@ -152,10 +249,13 @@ export const RoleForm: FC = () => {
                         />
                       </div>
                     </div>
+                    {errors.phone && (
+                      <span className="text-xs text-red-500">
+                        {errors.phone.message}
+                      </span>
+                    )}
                   </div>
                 </div>
-
-                {/* Created On, Modified On, Modified By */}
                 <div className="flex w-full gap-10 flex-wrap mt-[30px] max-md:max-w-full">
                   <div className="flex min-w-60 flex-col items-stretch flex-1 shrink basis-[0%]">
                     <label className="text-[15px] text-[#444446] tracking-[-0.24px] leading-none">
@@ -165,7 +265,6 @@ export const RoleForm: FC = () => {
                       DD/MM/YYYY
                     </div>
                   </div>
-
                   <div className="flex min-w-60 flex-col items-stretch flex-1 shrink basis-[0%]">
                     <label className="text-[15px] text-[#444446] tracking-[-0.24px] leading-none">
                       Modified On
@@ -174,7 +273,6 @@ export const RoleForm: FC = () => {
                       DD/MM/YYYY
                     </div>
                   </div>
-
                   <div className="flex min-w-60 flex-col items-stretch flex-1 shrink basis-[0%]">
                     <label className="text-[15px] text-[#444446] tracking-[-0.24px] leading-none">
                       Modified By
@@ -184,15 +282,12 @@ export const RoleForm: FC = () => {
                     </div>
                   </div>
                 </div>
-
-                {/* Role & Access Section */}
                 <div className="w-full mt-[50px] max-md:max-w-full">
                   <h2 className="flex w-full items-center gap-2 text-xl font-medium tracking-[0.38px] leading-none max-md:max-w-full">
                     <span className="bg-clip-text bg-[linear-gradient(90deg,#06B2E1_0%,#22E9A2_100%)] text-transparent">
                       Role & Access
                     </span>
                   </h2>
-
                   <div className="w-full mt-5 max-md:max-w-full space-y-5">
                     <div className="rounded bg-white w-full p-4 border-[rgba(242,242,247,1)] border-solid border-2">
                       <div className="flex w-full items-stretch gap-3 text-[15px] text-[#242426] font-semibold whitespace-nowrap tracking-[-0.24px] leading-none flex-wrap">
@@ -203,7 +298,6 @@ export const RoleForm: FC = () => {
                           alt="Icon"
                         />
                       </div>
-
                       <div className="flex w-full gap-8 font-normal flex-wrap mt-[25px]">
                         <div className="flex min-w-60 min-h-[76px] flex-col items-stretch flex-1 shrink basis-[0%]">
                           <label className="flex items-center gap-1">
@@ -226,8 +320,12 @@ export const RoleForm: FC = () => {
                               alt="Dropdown"
                             />
                           </div>
+                          {errors.role && (
+                            <span className="text-xs text-red-500">
+                              {errors.role.message}
+                            </span>
+                          )}
                         </div>
-
                         <div className="flex min-w-60 min-h-[76px] flex-col items-stretch flex-1 shrink basis-[0%]">
                           <label className="text-[15px] text-[#444446] tracking-[-0.24px] leading-none">
                             Description
@@ -240,7 +338,6 @@ export const RoleForm: FC = () => {
                         </div>
                       </div>
                     </div>
-
                     <div className="rounded bg-white w-full p-4 border-[rgba(242,242,247,1)] border-solid border-2">
                       <div className="flex w-full items-stretch gap-3 text-[15px] text-[#242426] font-semibold whitespace-nowrap tracking-[-0.24px] leading-none flex-wrap">
                         <span className="grow shrink w-[833px]">Access</span>
@@ -250,46 +347,33 @@ export const RoleForm: FC = () => {
                           alt="Icon"
                         />
                       </div>
-
                       <div className="space-y-[25px] mt-[25px]">
                         <AccessControl
                           title="User Management"
                           enabled={accessControls.userManagement}
                           onToggle={(enabled) =>
-                            setAccessControls((prev) => ({
-                              ...prev,
-                              userManagement: enabled,
-                            }))
+                            setAccessControl("userManagement", enabled)
                           }
                         />
                         <AccessControl
                           title="Simulation"
                           enabled={accessControls.simulation}
                           onToggle={(enabled) =>
-                            setAccessControls((prev) => ({
-                              ...prev,
-                              simulation: enabled,
-                            }))
+                            setAccessControl("simulation", enabled)
                           }
                         />
                         <AccessControl
                           title="Package"
                           enabled={accessControls.package}
                           onToggle={(enabled) =>
-                            setAccessControls((prev) => ({
-                              ...prev,
-                              package: enabled,
-                            }))
+                            setAccessControl("package", enabled)
                           }
                         />
                         <AccessControl
                           title="Payment"
                           enabled={accessControls.payment}
                           onToggle={(enabled) =>
-                            setAccessControls((prev) => ({
-                              ...prev,
-                              payment: enabled,
-                            }))
+                            setAccessControl("payment", enabled)
                           }
                           showActions={false}
                         />
@@ -299,35 +383,6 @@ export const RoleForm: FC = () => {
                 </div>
               </form>
             </div>
-
-            {/* <div className="flex flex-col items-stretch font-normal">
-                            <SearchBar className="xl:w-[1/5]" />
-
-                            <div className="flex w-[202px] max-w-full flex-col items-stretch text-base text-center tracking-[-0.32px] leading-none justify-center mt-[49px] space-y-5 max-md:mt-10">
-
-                                <GradientButton
-                                    variant="primary"
-                                    className="px-8 py-4"
-                                >
-                                    Add New Role
-                                </GradientButton>
-                                <GradientButton
-                                    variant="outline"
-                                    className="bg-bg-[#06B2E1] text-[#06B2E1] px-8 py-4]"
-                                >
-                                    Save & Exit
-                                </GradientButton>
-                                <GradientButton
-                                    variant="outline"
-                                    className="bg-bg-[#06B2E1] text-[#06B2E1] px-8 py-4 "
-                                >
-                                    Save
-                                </GradientButton>
-                                <GradientButton variant="danger">
-                                    Delete
-                                </GradientButton>
-                            </div>
-                        </div> */}
             <SidebarActions actions={actions} />
           </div>
         </div>

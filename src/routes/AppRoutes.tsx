@@ -114,14 +114,15 @@ const router = createBrowserRouter([
     ),
   },
   {
-  path: "/user-role-&-access/:UserGroupId",
-  element: (
-    <PrivateRoute>
-      {/* TODO: Replace with actual component for user role and access detail */}
-      <div>User Role and Access Detail Page for UserGroupId</div>
-    </PrivateRoute>
-  ),
-},
+    path: "/user-role-&-access/:UserGroupId",
+    element: (
+      <PrivateRoute>
+        {/* TODO: Replace with actual component for user role and access detail
+        <div>User Role and Access Detail Page for UserGroupId</div> */}
+        <RoleForm />
+      </PrivateRoute>
+    ),
+  },
 
   {
     path: "/user",
@@ -211,14 +212,14 @@ const router = createBrowserRouter([
       </PrivateRoute>
     ),
   },
-  {
-    path: "/add-role",
-    element: (
-      <PrivateRoute>
-        <RoleForm />
-      </PrivateRoute>
-    ),
-  },
+  // {
+  //   path: "/add-role",
+  //   element: (
+  //     <PrivateRoute>
+  //       <RoleForm />
+  //     </PrivateRoute>
+  //   ),
+  // },
   {
     path: "/plan",
     element: (

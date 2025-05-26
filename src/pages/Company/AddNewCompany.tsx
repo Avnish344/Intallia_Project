@@ -5,7 +5,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import CompanyForm from "./CompanyForm";
 import { MainLayout } from "../../components/layout/MainLayout";
 import SidebarActions from "../../components/users/SidebarActions";
-import { addCompany, getCompanyById } from "@/axios/api.js";
+import { addCompany, getCompanyById } from "@/http/api.js";
 
 type Action = {
   variant: "primary" | "outline" | "danger";

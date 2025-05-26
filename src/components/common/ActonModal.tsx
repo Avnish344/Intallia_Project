@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { deleteCompany } from "@/axios/api";
+import { deleteCompany } from "@/http/api";
 import { useNavigate } from "react-router-dom";
 
 // Define props

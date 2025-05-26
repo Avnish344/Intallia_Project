@@ -7,7 +7,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { users } from "@/data/users";
 import { useQuery } from "@tanstack/react-query";
-import { getScreen } from "@/axios/api.js";
+import { getScreen } from "@/http/api.js";
 
 
 const Plans = () => {

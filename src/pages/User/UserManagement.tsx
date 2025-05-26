@@ -5,7 +5,7 @@ import { UserTable } from "@/components/users/UserTable";
 import { UserTableActions } from "@/components/users/UserTableActions";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { getScreen } from "@/axios/api.js";
+import { getScreen } from "@/http/api.js";
 import { useQuery } from "@tanstack/react-query";
 
 const UserManagement = () => {

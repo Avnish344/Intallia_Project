@@ -1,6 +1,6 @@
 // src/store/AuthStore.ts
 import { create } from "zustand";
-import api, { login } from "@/axios/api";
+import api, { login } from "@/http/api";
 
 type State = {
   token: string | null;

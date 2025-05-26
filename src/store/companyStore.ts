@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { fetchCompanyList, deleteCompany } from "@/axios/api";
+import { fetchCompanyList, deleteCompany } from "@/http/api";
 
 interface Company {
   id: string;
