@@ -2,17 +2,16 @@ import { Badge } from "@/components/ui/badge";
 import { Company } from "@/types/index";
 import ThreeDotMenu from "@/components/common/ActonModal";
 import { DataTable, Column } from "@/components/common/DataTable";
-
-
-
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { deleteCompany } from "@/http/api";
+import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 
 const tableColumns: Column<Company>[] = [
   {
     key: "companyid",
     header: "Company ID",
-    render: (company) => (
-      company.CompanyId
-    ),
+    render: (company) => company.CompanyId,
   },
   {
     key: "name",
@@ -41,7 +40,8 @@ const tableColumns: Column<Company>[] = [
     header: "Status",
     render: (company) => {
       const status = company.Status
-        ? company.Status.charAt(0).toUpperCase() + company.Status.slice(1).toLowerCase()
+        ? company.Status.charAt(0).toUpperCase() +
+          company.Status.slice(1).toLowerCase()
         : "";
       return (
         <Badge
@@ -78,18 +78,64 @@ interface CTableProps {
   companies: Company[];
 }
 
-export const CTable = ({
-  searchQuery,
-  companies,
-}: CTableProps) => {
+export const CTable = ({ searchQuery, companies }: CTableProps) => {
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+
+  const handleEdit = (companyId: string | number) => {
+    if (!companyId) {
+      toast.error("CompanyId is undefined");
+      return;
+    }
+    navigate(`/add-company?companyId=${companyId}`);
+  };
+
+  const deleteCompanyMutation = useMutation({
+    mutationFn: async (companyId: string | number) => {
+      const payload = {
+        JSON: JSON.stringify({
+          Header: [{ CompanyId: companyId }],
+          Response: [{ ResponseText: "", ErrorCode: "" }],
+        }),
+      };
+      return await deleteCompany(payload);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["companies"] });
+      toast.success("Company deleted successfully.");
+    },
+    onError: (error) => {
+      console.error("Delete failed:", error);
+      toast.error("Failed to delete company.");
+    },
+  });
+
+  const getRowActions = (company: Company) => {
+    if (!company || !company.CompanyId) return null;
+    return (
+      <ThreeDotMenu
+        actions={[
+          {
+            label: "Edit",
+            onClick: () => handleEdit(company.CompanyId),
+          },
+          {
+            label: "Delete",
+            onClick: () => deleteCompanyMutation.mutate(company.CompanyId),
+            className: "text-red-600 hover:bg-red-50",
+          },
+        ]}
+      />
+    );
+  };
+
   return (
     <DataTable
       data={companies}
       columns={tableColumns}
       rowKey={(company) => company.CompanyId}
       selectable
-      actions={(company) => (company && company.CompanyId ? <ThreeDotMenu company={company} /> : null)}
-
+      actions={getRowActions}
     />
   );
 };

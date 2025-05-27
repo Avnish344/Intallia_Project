@@ -21,11 +21,7 @@ const AddNewUser = lazy(() =>
     default: module.AddNewUser,
   })),
 );
-const AddNewCompany = lazy(() =>
-  import("@/pages/Company/AddNewCompany").then((module) => ({
-    default: module.AddNewCompany,
-  })),
-);
+const AddNewCompany = lazy(() => import("@/pages/Company/AddNewCompany"));
 const RoleForm = lazy(() =>
   import("@/pages/RolesAndAccess/RoleForm").then((module) => ({
     default: module.RoleForm,

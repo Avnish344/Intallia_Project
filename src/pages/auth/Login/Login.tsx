@@ -15,7 +15,7 @@ const Login = () => {
             <img src={myImage} alt="Example" />
           </div>
           <div className="flex gap-2 items-center">
-            <button  className="rounded-lg bg-[#242426] py-2 px-3 text-[#FFFFFF] leading-[21px]">
+            <button className="rounded-lg bg-[#242426] py-2 px-3 text-[#FFFFFF] leading-[21px]">
               Login
             </button>
             <button className="ring-1 rounded-lg py-1 px-3 ring-[#242426]">
@@ -31,14 +31,7 @@ const Login = () => {
             Explore. Practice. Get Hired!
           </h2>
         </div>
-        {!isShowV && (
-          <LoginForm
-            onSubmit={(e) => {
-              console.log(e);
-              setIsShowV(true);
-            }}
-          />
-        )}
+        {!isShowV && <LoginForm />}
       </div>
     </div>
   );

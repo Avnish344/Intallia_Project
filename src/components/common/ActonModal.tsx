@@ -1,56 +1,21 @@
 import React, { useState, useRef, useEffect } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { deleteCompany } from "@/http/api";
-import { useNavigate } from "react-router-dom";
 
-// Define props
-interface Company {
-  CompanyId: string;
-  // Add other fields if needed
+export interface ActionMenuAction {
+  label: string;
+  onClick: () => void;
+  className?: string;
+  disabled?: boolean;
 }
 
-
-interface Props {
-  company?: Company;
+interface ActionMenuProps {
+  actions: ActionMenuAction[];
+  icon?: React.ReactNode;
 }
 
-const ActionModal: React.FC<Props> = ({ company }) => {
+const ActionMenu: React.FC<ActionMenuProps> = ({ actions, icon }) => {
   const [open, setOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
-  // Inside ActionModal component
-  const navigate = useNavigate();
 
-  const handleEdit = () => {
-  if (!company || !company.CompanyId) {
-    console.error("Company is undefined or missing CompanyId");
-    return;
-  }
-  setOpen(false);
-  navigate(`/add-company?companyId=${company.CompanyId}`);
-};
-
-  const queryClient = useQueryClient();
-
-  const deleteCompanyMutation = useMutation({
-    mutationFn: async (companyId: string) => {
-      const payload = {
-        JSON: JSON.stringify({
-          Header: [{ CompanyId: companyId }],
-          Response: [{ ResponseText: "", ErrorCode: "" }],
-        }),
-      };
-      return await deleteCompany(payload);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["companies"] });
-    },
-    onError: (error) => {
-      console.error("Delete failed:", error);
-      alert("Failed to delete company.");
-    },
-  });
-
-  // Close menu on outside click
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
@@ -61,11 +26,6 @@ const ActionModal: React.FC<Props> = ({ company }) => {
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  const handleAction = (label: string) => {
-    alert(`You clicked: ${label}`);
-    setOpen(false);
-  };
-
   return (
     <div className="relative inline-block text-left" ref={menuRef}>
       <button
@@ -75,26 +35,26 @@ const ActionModal: React.FC<Props> = ({ company }) => {
         aria-haspopup="true"
         aria-expanded={open}
       >
-        ⋮
+        {icon || "⋮"}
       </button>
 
       {open && (
         <div className="absolute right-0 z-10 mt-2 w-56 origin-top-right rounded-md border border-gray-200 bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
           <div className="py-1">
-            <button
-              type="button"
-              onClick={handleEdit}
-              className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-            >
-              Edit Company
-            </button>
-            <button
-              className="text-red-500 hover:underline px-4 py-2 text-sm w-full text-left"
-              onClick={() => deleteCompanyMutation.mutate(company.CompanyId)}
-              disabled={deleteCompanyMutation.isPending}
-            >
-              {deleteCompanyMutation.isPending ? "Deleting..." : "Delete"}
-            </button>
+            {actions.map((action, idx) => (
+              <button
+                key={action.label + idx}
+                type="button"
+                onClick={() => {
+                  action.onClick();
+                  setOpen(false);
+                }}
+                className={`w-full text-left px-4 py-2 text-sm ${action.className || "text-gray-700 hover:bg-gray-100"}`}
+                disabled={action.disabled}
+              >
+                {action.label}
+              </button>
+            ))}
           </div>
         </div>
       )}
@@ -102,4 +62,4 @@ const ActionModal: React.FC<Props> = ({ company }) => {
   );
 };
 
-export default ActionModal;
+export default ActionMenu;
