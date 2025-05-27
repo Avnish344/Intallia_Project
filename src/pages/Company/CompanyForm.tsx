@@ -1,402 +1,445 @@
-import React, { useState } from "react";
-import { useParams } from "react-router-dom";
-import jsPDF from "jspdf";
+import { forwardRef, useImperativeHandle, useEffect } from "react";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { addCompany, getCompanyById, updateCompany } from "@/http/api.js";
+import { useNavigate } from "react-router-dom";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 
+const companySchema = z.object({
+  companyId: z.string().min(1, "CompanyId is required"),
+  companyName: z.string().min(1, "CompanyName is required"),
+  contactPersonName: z.string().min(1, "ContactPersonName is required"),
+  phoneNumber: z.string().min(1, "PhoneNumber is required"),
+  website: z.string().url("Invalid URL"),
+  email: z.string().email("Invalid email"),
+  address: z.string().min(1, "Address is required"),
+  city: z.string().min(1, "City is required"),
+  state: z.string().min(1, "State is required"),
+  country: z.string().min(1, "Country is required"),
+  status: z.string().min(1, "Status is required"),
+  numberOfUsers: z.string().optional(),
+  numberOfSimulations: z.string().optional(),
+});
 
+type CompanyFormValues = z.infer<typeof companySchema>;
+
+const defaultValues: CompanyFormValues = {
+  companyId: "",
+  companyName: "",
+  contactPersonName: "",
+  phoneNumber: "",
+  website: "",
+  email: "",
+  address: "",
+  city: "",
+  state: "",
+  country: "",
+  status: "",
+  numberOfUsers: "",
+  numberOfSimulations: "",
+};
+
+const buildCompanyPayload = (companyId: string | number) => {
+  if (!companyId) {
+    throw new Error("Invalid companyId provided to buildCompanyPayload");
+  }
+  return {
+    JSON: JSON.stringify({
+      Header: [{ CompanyId: companyId }],
+      Response: [{ ResponseText: "", ErrorCode: "" }],
+    }),
+  };
+};
+
+const mapCompanyDataToForm = (data): CompanyFormValues => ({
+  companyId: data?.CompanyId || "",
+  companyName: data?.CompanyName || "",
+  contactPersonName: data?.ContactPersonName || "",
+  phoneNumber: data?.PhoneNumber || "",
+  website: data?.Website || "",
+  email: data?.Email || "",
+  address: data?.Address || "",
+  city: data?.City || "",
+  state: data?.State || "",
+  country: data?.Country || "",
+  status: data?.Status || "",
+  numberOfUsers: data?.NumberOfUsers || "",
+  numberOfSimulations: data?.NumberOfSimulations || "",
+});
 
 interface CompanyFormProps {
-  formData: {
-    companyId: string;
-    companyName: string;
-    contactPersonName: string;
-    phoneNumber: string;
-    website: string;
-    email: string;
-    address: string;
-    city: string;
-    state: string;
-    country: string;
-    status: string;
-    // Add more fields if necessary
-  };
-  setFormData: React.Dispatch<
-    React.SetStateAction<{
-      companyId: string;
-      companyName: string;
-      contactPersonName: string;
-      phoneNumber: string;
-      website: string;
-      email: string;
-      address: string;
-      city: string;
-      state: string;
-      country: string;
-      status: string;
-    }>
-  >;
+  companyId?: string;
 }
 
-interface CompanyFormData {
-  companyId: string;
-  companyName: string;
-  contactPersonName: string;
-  phoneNumber: string;
-  website: string;
-  email: string;
-  address: string;
-  city: string;
-  state: string;
-  country: string;
-  status: string;
+export interface CompanyFormRef {
+  submit: () => void;
 }
 
-const CompanyForm: React.FC<CompanyFormProps> = ({ formData, setFormData }) => {
-  const [errors, setErrors] = useState<Partial<CompanyFormData>>({});
+const CompanyForm = forwardRef<CompanyFormRef, CompanyFormProps>(
+  ({ companyId }, ref) => {
+    const navigate = useNavigate();
+    const queryClient = useQueryClient();
 
-const { companyId } = useParams<{ companyId: string }>();
+    const {
+      register,
+      handleSubmit,
+      setValue,
+      formState: { errors },
+    } = useForm<CompanyFormValues>({
+      resolver: zodResolver(companySchema),
+      defaultValues,
+    });
 
-
-  
-
-  const handleChange = (
-    e: React.ChangeEvent<
-      HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
-    >,
-  ) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
+    useImperativeHandle(ref, () => ({
+      submit: () => handleSubmit(onSubmit)(),
     }));
-  };
 
-  const validate = (): boolean => {
-    const newErrors: Partial<CompanyFormData> = {};
+    // Add new Company
+    const addNewCompany = async (formData: CompanyFormValues) => {
+      try {
+        const payload = {
+          JSON: JSON.stringify({
+            Header: [
+              {
+                ...formData,
+                NumberOfUsers: formData.numberOfUsers || "500",
+                NumberOfSimulations: formData.numberOfSimulations || "500",
+                CreateBy: "Admin",
+                CreateDate: new Date().toISOString(),
+                ModifyBy: "Admin",
+                ModifyDate: new Date().toISOString(),
+                ...Array.from({ length: 15 }, (_, i) => ({
+                  [`Intallia${i + 1}`]: null,
+                })).reduce((acc, curr) => ({ ...acc, ...curr }), {}),
+              },
+            ],
+            Response: [{ ResponseText: "", ErrorCode: "" }],
+          }),
+        };
 
-    if (!formData.companyId.trim())
-      newErrors.companyId = "CompanyId is required";
-    if (!formData.companyName.trim())
-      newErrors.companyName = "CompanyName is required";
-    if (!formData.contactPersonName.trim())
-      newErrors.contactPersonName = "Contact Person Name is required";
-    if (!formData.phoneNumber.trim())
-      newErrors.phoneNumber = "Phone Number is required";
-    if (!formData.website.trim()) newErrors.website = "Website is required";
-    if (!formData.email.trim()) newErrors.email = "Email is required";
-    if (!formData.address.trim()) newErrors.address = "Address is required";
-    if (!formData.city.trim()) newErrors.city = "City is required";
-    if (!formData.state.trim()) newErrors.state = "State is required";
-    if (!formData.country.trim()) newErrors.country = "Country is required";
-    if (!formData.status.trim()) newErrors.status = "Status is required";
+        await addCompany(payload);
+        await queryClient.invalidateQueries({ queryKey: ["companies"] });
+        toast.success("Company added successfully!");
+        navigate("/company");
+      } catch (error) {
+        toast.error("Failed to add company");
+        console.error(error);
+      }
+    };
 
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
+    // Update Company
+    const handleUpdateCompany = async (formData: CompanyFormValues) => {
+      try {
+        const payload = {
+          JSON: JSON.stringify({
+            Header: [
+              {
+                ...formData,
+                NumberOfUsers: formData.numberOfUsers || "500",
+                NumberOfSimulations: formData.numberOfSimulations || "500",
+                CreateBy: "Admin",
+                CreateDate: new Date().toISOString(),
+                ModifyBy: "Admin",
+                ModifyDate: new Date().toISOString(),
+                ...Array.from({ length: 15 }, (_, i) => ({
+                  [`Intallia${i + 1}`]: null,
+                })).reduce((acc, curr) => ({ ...acc, ...curr }), {}),
+              },
+            ],
+            Response: [{ ResponseText: "", ErrorCode: "" }],
+          }),
+        };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (validate()) {
-      // You can add form submission logic here or call a prop function
-      alert("Form submitted successfully!");
-    }
-  };
+        await updateCompany(payload);
+        await queryClient.invalidateQueries({ queryKey: ["companies"] });
+        toast.success("Company updated successfully!");
+        navigate("/company");
+      } catch (error) {
+        toast.error("Failed to update company");
+        console.error(error);
+      }
+    };
 
-  return (
-    <form
-      className="flex font-plusJakarta flex-col gap-6 overflow-y-auto max-w-4xl mx-auto p-4"
-      noValidate
-      onSubmit={handleSubmit}
-    >
-      <h2 className="text-xl font-medium tracking-[0.38px] bg-clip-text bg-gradient-to-r from-[#0DAFDC] to-[#22E9A2] text-transparent">
-        Personal Details
-      </h2>
+    const onSubmit = async (formData: CompanyFormValues) => {
+      if (companyId) {
+        await handleUpdateCompany(formData);
+      } else {
+        await addNewCompany(formData);
+      }
+    };
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* CompanyId */}
-        <div className="flex flex-col gap-1">
-          <label
-            htmlFor="companyId"
-            className="text-[15px] text-[#444446] flex items-center gap-1"
-          >
-            CompanyId <span className="text-[#FF3A3A] text-sm">*</span>
-          </label>
-          <input
-            id="companyId"
-            name="companyId"
-            type="text"
-            value={formData.companyId}
-            onChange={handleChange}
-            placeholder="Enter Company ID"
-            className={`rounded border px-4 py-3.5 min-h-12 bg-white ${
-              errors.companyId ? "border-red-500" : "border-[#E5E5EA]"
-            }`}
-          />
-          {errors.companyId && (
-            <p className="text-red-500 text-xs mt-1">{errors.companyId}</p>
-          )}
-        </div>
+    // fetch single company data based on Company ID
+    const { data: companyData, isFetched } = useQuery({
+      queryKey: ["company", companyId],
+      queryFn: async () => {
+        if (!companyId) return null;
+        const response = await getCompanyById(buildCompanyPayload(companyId));
+        const header = response?.Header;
+        return Array.isArray(header) && header.length > 0 ? header[0] : null;
+      },
+      enabled: Boolean(companyId),
+      staleTime: 5 * 60 * 1000,
+      refetchOnWindowFocus: false,
+    });
 
-        {/* CompanyName */}
-        <div className="flex flex-col gap-1">
-          <label
-            htmlFor="companyName"
-            className="text-[15px] text-[#444446] flex items-center gap-1"
-          >
-            CompanyName <span className="text-[#FF3A3A] text-sm">*</span>
-          </label>
-          <input
-            id="companyName"
-            name="companyName"
-            type="text"
-            value={formData.companyName}
-            onChange={handleChange}
-            placeholder="Enter Company Name"
-            className={`rounded border px-4 py-3.5 min-h-12 bg-white ${
-              errors.companyName ? "border-red-500" : "border-[#E5E5EA]"
-            }`}
-          />
-          {errors.companyName && (
-            <p className="text-red-500 text-xs mt-1">{errors.companyName}</p>
-          )}
-        </div>
+    console.log("companyData", companyData);
 
-        {/* Contact Person Name */}
-        <div className="flex flex-col gap-1">
-          <label
-            htmlFor="contactPersonName"
-            className="text-[15px] text-[#444446] flex items-center gap-1"
-          >
-            Contact Person Name{" "}
-            <span className="text-[#FF3A3A] text-sm">*</span>
-          </label>
-          <input
-            id="contactPersonName"
-            name="contactPersonName"
-            type="text"
-            value={formData.contactPersonName}
-            onChange={handleChange}
-            placeholder="Enter Contact Person Name"
-            className={`rounded border px-4 py-3.5 min-h-12 bg-white ${
-              errors.contactPersonName ? "border-red-500" : "border-[#E5E5EA]"
-            }`}
-          />
-          {errors.contactPersonName && (
-            <p className="text-red-500 text-xs mt-1">
-              {errors.contactPersonName}
-            </p>
-          )}
-        </div>
+    useEffect(() => {
+      if (companyData) {
+        const values = mapCompanyDataToForm(companyData);
+        Object.entries(values).forEach(([key, value]) =>
+          setValue(key as keyof CompanyFormValues, value),
+        );
+      }
+    }, [companyData, setValue, isFetched]);
 
-        {/* Phone Number */}
-        <div className="flex flex-col gap-1">
-          <label
-            htmlFor="phoneNumber"
-            className="text-[15px] text-[#444446] flex items-center gap-1"
-          >
-            Phone Number <span className="text-[#FF3A3A] text-sm">*</span>
-          </label>
-          <div
-            className={`flex items-center rounded border px-4 py-3.5 min-h-12 bg-white ${
-              errors.phoneNumber ? "border-red-500" : "border-[#E5E5EA]"
-            }`}
-          >
-            <img
-              src="https://cdn.builder.io/api/v1/image/assets/4e93f2d3d72f4b58b47d979bd758d34a/b3e578b8881e144097eda901ab80255224febf55ffe07d1428a77e2beb4c1939"
-              alt="Country flag"
-              className="w-5 h-3.5"
-            />
-            <input
-              id="phoneNumber"
-              name="phoneNumber"
-              type="tel"
-              value={formData.phoneNumber}
-              onChange={handleChange}
-              placeholder="12344568"
-              className="w-full outline-none placeholder:text-black ml-3"
-            />
-            <img
-              src="https://cdn.builder.io/api/v1/image/assets/4e93f2d3d72f4b58b47d979bd758d34a/610bae2bd3fec3226daeb553c69952d46dcb01bf137f75b31b35e8b80820ae1e"
-              alt="Dropdown"
-              className="w-4 h-4 ml-2"
-            />
+    return (
+      <form
+        className="flex font-plusJakarta flex-col gap-5 overflow-y-auto"
+        noValidate
+      >
+        <div className="w-full">
+          <h2 className="text-xl font-medium tracking-[0.38px] bg-clip-text bg-[linear-gradient(90deg,#0DAFDC_0%,#22E9A2_100%)] text-transparent ">
+            Personal Details
+          </h2>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-5">
+            <div className="flex flex-col gap-2">
+              <label className="flex items-center gap-1">
+                <span className="text-[15px] text-[#444446] leading-5 ">
+                  CompanyId
+                </span>
+                <span className="text-[#FF3A3A] text-sm">*</span>
+              </label>
+              <input
+                type="text"
+                {...register("companyId")}
+                className="rounded border border-[#E5E5EA] bg-white min-h-12 px-4 py-3.5"
+              />
+              {errors.companyId && (
+                <span className="text-xs text-red-500">
+                  {errors.companyId.message}
+                </span>
+              )}
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <label className="flex items-center gap-1">
+                <span className="text-[15px] text-[#444446] tracking-[-0.24px]">
+                  CompanyName
+                </span>
+                <span className="text-[#FF3A3A] text-sm">*</span>
+              </label>
+              <input
+                type="text"
+                {...register("companyName")}
+                className="rounded border border-[#E5E5EA] bg-white min-h-12 px-4 py-3.5"
+              />
+              {errors.companyName && (
+                <span className="text-xs text-red-500">
+                  {errors.companyName.message}
+                </span>
+              )}
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <label className="flex items-center gap-1">
+                <span className="text-[15px] text-[#444446] tracking-[-0.24px]">
+                  ContactPersonName
+                </span>
+                <span className="text-[#FF3A3A] text-sm">*</span>
+              </label>
+              <input
+                type="text"
+                {...register("contactPersonName")}
+                className="rounded border border-[#E5E5EA] bg-white min-h-12 px-4 py-3.5"
+              />
+              {errors.contactPersonName && (
+                <span className="text-xs text-red-500">
+                  {errors.contactPersonName.message}
+                </span>
+              )}
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <label className="flex items-center gap-1">
+                <span className="text-[15px] text-[#444446] tracking-[-0.24px]">
+                  PhoneNumber
+                </span>
+                <span className="text-[#FF3A3A] text-sm">*</span>
+              </label>
+              <div className="flex items-center rounded border border-[#E5E5EA] bg-white min-h-12 px-4 py-3.5">
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-1">
+                    <img
+                      src="https://cdn.builder.io/api/v1/image/assets/4e93f2d3d72f4b58b47d979bd758d34a/b3e578b8881e144097eda901ab80255224febf55ffe07d1428a77e2beb4c1939"
+                      alt="Country flag"
+                      className="w-5 h-3.5"
+                    />
+                    <span>+91</span>
+                    <img
+                      src="https://cdn.builder.io/api/v1/image/assets/4e93f2d3d72f4b58b47d979bd758d34a/610bae2bd3fec3226daeb553c69952d46dcb01bf137f75b31b35e8b80820ae1e"
+                      alt="Dropdown"
+                      className="w-4 h-4"
+                    />
+                  </div>
+                  <input
+                    type="tel"
+                    placeholder="12344568"
+                    {...register("phoneNumber")}
+                    className="w-full outline-none placeholder:pl-4 placeholder:text-black"
+                  />
+                </div>
+              </div>
+              {errors.phoneNumber && (
+                <span className="text-xs text-red-500">
+                  {errors.phoneNumber.message}
+                </span>
+              )}
+            </div>
           </div>
-          {errors.phoneNumber && (
-            <p className="text-red-500 text-xs mt-1">{errors.phoneNumber}</p>
-          )}
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-5">
+            <div className="flex flex-col gap-2">
+              <label className="flex items-center gap-1">
+                <span className="text-[15px] text-[#444446] tracking-[-0.24px]">
+                  Website
+                </span>
+                <span className="text-[#FF3A3A] text-sm">*</span>
+              </label>
+              <input
+                type="url"
+                {...register("website")}
+                className="rounded border border-[#E5E5EA] bg-white min-h-12 px-4 py-3.5"
+              />
+              {errors.website && (
+                <span className="text-xs text-red-500">
+                  {errors.website.message}
+                </span>
+              )}
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <label className="flex items-center gap-1">
+                <span className="text-[15px] text-[#444446] tracking-[-0.24px]">
+                  Email
+                </span>
+                <span className="text-[#FF3A3A] text-sm">*</span>
+              </label>
+              <input
+                type="email"
+                {...register("email")}
+                className="rounded border border-[#E5E5EA] bg-white min-h-12 px-4 py-3.5"
+              />
+              {errors.email && (
+                <span className="text-xs text-red-500">
+                  {errors.email.message}
+                </span>
+              )}
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-2 mt-5">
+            <label className="flex items-center gap-1">
+              <span className="text-[15px] text-[#444446] font-normal">
+                Address
+              </span>
+              <span className="text-[#FF3A3A] text-sm">*</span>
+            </label>
+            <input
+              type="text"
+              {...register("address")}
+              placeholder="Enter address"
+              className="rounded border border-[#E5E5EA] bg-white min-h-12 px-4 py-3.5"
+            />
+            {errors.address && (
+              <span className="text-xs text-red-500">
+                {errors.address.message}
+              </span>
+            )}
+          </div>
+
+          <div className="flex flex-col gap-2 mt-5">
+            <label className="flex items-center gap-1">
+              <span className="text-[15px] text-[#444446] font-normal">
+                City
+              </span>
+              <span className="text-[#FF3A3A] text-sm">*</span>
+            </label>
+            <input
+              type="text"
+              {...register("city")}
+              className="rounded border border-[#E5E5EA] bg-white min-h-12 px-4 py-3.5"
+            />
+            {errors.city && (
+              <span className="text-xs text-red-500">
+                {errors.city.message}
+              </span>
+            )}
+          </div>
+
+          <div className="flex flex-col gap-2 mt-5">
+            <label className="flex items-center gap-1">
+              <span className="text-[15px] text-[#444446] font-normal">
+                State
+              </span>
+              <span className="text-[#FF3A3A] text-sm">*</span>
+            </label>
+            <input
+              type="text"
+              {...register("state")}
+              className="rounded border border-[#E5E5EA] bg-white min-h-12 px-4 py-3.5"
+            />
+            {errors.state && (
+              <span className="text-xs text-red-500">
+                {errors.state.message}
+              </span>
+            )}
+          </div>
+
+          <div className="flex flex-col gap-2 mt-5">
+            <label className="flex items-center gap-1">
+              <span className="text-[15px] text-[#444446] font-normal">
+                Country
+              </span>
+              <span className="text-[#FF3A3A] text-sm">*</span>
+            </label>
+            <input
+              type="text"
+              {...register("country")}
+              className="rounded border border-[#E5E5EA] bg-white min-h-12 px-4 py-3.5"
+            />
+            {errors.country && (
+              <span className="text-xs text-red-500">
+                {errors.country.message}
+              </span>
+            )}
+          </div>
+
+          <div className="flex flex-col gap-2 mt-5">
+            <label className="flex items-center gap-1">
+              <span className="text-[15px] text-[#444446] font-normal">
+                Status
+              </span>
+              <span className="text-[#FF3A3A] text-sm">*</span>
+            </label>
+            <input
+              type="text"
+              {...register("status")}
+              className="rounded border border-[#E5E5EA] bg-white min-h-12 px-4 py-3.5"
+            />
+            {errors.status && (
+              <span className="text-xs text-red-500">
+                {errors.status.message}
+              </span>
+            )}
+          </div>
         </div>
-
-        {/* Website */}
-        <div className="flex flex-col gap-1">
-          <label
-            htmlFor="website"
-            className="text-[15px] text-[#444446] flex items-center gap-1"
-          >
-            Website <span className="text-[#FF3A3A] text-sm">*</span>
-          </label>
-          <input
-            id="website"
-            name="website"
-            type="url"
-            value={formData.website}
-            onChange={handleChange}
-            placeholder="https://example.com"
-            className={`rounded border px-4 py-3.5 min-h-12 bg-white ${
-              errors.website ? "border-red-500" : "border-[#E5E5EA]"
-            }`}
-          />
-          {errors.website && (
-            <p className="text-red-500 text-xs mt-1">{errors.website}</p>
-          )}
-        </div>
-
-        {/* Email */}
-        <div className="flex flex-col gap-1">
-          <label
-            htmlFor="email"
-            className="text-[15px] text-[#444446] flex items-center gap-1"
-          >
-            Email <span className="text-[#FF3A3A] text-sm">*</span>
-          </label>
-          <input
-            id="email"
-            name="email"
-            type="email"
-            value={formData.email}
-            onChange={handleChange}
-            placeholder="example@mail.com"
-            className={`rounded border px-4 py-3.5 min-h-12 bg-white ${
-              errors.email ? "border-red-500" : "border-[#E5E5EA]"
-            }`}
-          />
-          {errors.email && (
-            <p className="text-red-500 text-xs mt-1">{errors.email}</p>
-          )}
-        </div>
-      </div>
-
-      {/* Address */}
-      <div className="flex flex-col gap-1">
-        <label
-          htmlFor="address"
-          className="text-[15px] text-[#444446] flex items-center gap-1"
-        >
-          Address <span className="text-[#FF3A3A] text-sm">*</span>
-        </label>
-        <input
-          id="address"
-          name="address"
-          type="text"
-          value={formData.address}
-          onChange={(handleChange)}
-          placeholder="Enter address"
-          className={`rounded border px-4 py-3.5 min-h-12 bg-white ${
-            errors.address ? "border-red-500" : "border-[#E5E5EA]"
-          }`}
-        />
-        {errors.address && (
-          <p className="text-red-500 text-xs mt-1">{errors.address}</p>
-        )}
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* City */}
-        <div className="flex flex-col gap-1">
-          <label
-            htmlFor="city"
-            className="text-[15px] text-[#444446] flex items-center gap-1"
-          >
-            City <span className="text-[#FF3A3A] text-sm">*</span>
-          </label>
-          <input
-            id="city"
-            name="city"
-            type="text"
-            value={formData.city}
-            onChange={handleChange}
-            placeholder="Enter City"
-            className={`rounded border px-4 py-3.5 min-h-12 bg-white ${
-              errors.city ? "border-red-500" : "border-[#E5E5EA]"
-            }`}
-          />
-          {errors.city && (
-            <p className="text-red-500 text-xs mt-1">{errors.city}</p>
-          )}
-        </div>
-
-        {/* State */}
-        <div className="flex flex-col gap-1">
-          <label
-            htmlFor="state"
-            className="text-[15px] text-[#444446] flex items-center gap-1"
-          >
-            State <span className="text-[#FF3A3A] text-sm">*</span>
-          </label>
-          <input
-            id="state"
-            name="state"
-            type="text"
-            value={formData.state}
-            onChange={handleChange}
-            placeholder="Enter State"
-            className={`rounded border px-4 py-3.5 min-h-12 bg-white ${
-              errors.state ? "border-red-500" : "border-[#E5E5EA]"
-            }`}
-          />
-          {errors.state && (
-            <p className="text-red-500 text-xs mt-1">{errors.state}</p>
-          )}
-        </div>
-
-        {/* Country */}
-        <div className="flex flex-col gap-1">
-          <label
-            htmlFor="country"
-            className="text-[15px] text-[#444446] flex items-center gap-1"
-          >
-            Country <span className="text-[#FF3A3A] text-sm">*</span>
-          </label>
-          <input
-            id="country"
-            name="country"
-            type="text"
-            value={formData.country}
-            onChange={handleChange}
-            placeholder="Enter Country"
-            className={`rounded border px-4 py-3.5 min-h-12 bg-white ${
-              errors.country ? "border-red-500" : "border-[#E5E5EA]"
-            }`}
-          />
-          {errors.country && (
-            <p className="text-red-500 text-xs mt-1">{errors.country}</p>
-          )}
-        </div>
-      </div>
-
-      {/* Status */}
-      <div className="flex flex-col gap-1">
-        <label
-          htmlFor="status"
-          className="text-[15px] text-[#444446] flex items-center gap-1"
-        >
-          Status <span className="text-[#FF3A3A] text-sm">*</span>
-        </label>
-        <input
-          id="status"
-          name="status"
-          type="text"
-          value={formData.status}
-          onChange={handleChange}
-          placeholder="Enter Status"
-          className={`rounded border px-4 py-3.5 min-h-12 bg-white ${
-            errors.status ? "border-red-500" : "border-[#E5E5EA]"
-          }`}
-        />
-        {errors.status && (
-          <p className="text-red-500 text-xs mt-1">{errors.status}</p>
-        )}
-      </div>
-    </form>
-  );
-};
+      </form>
+    );
+  },
+);
 
 export default CompanyForm;

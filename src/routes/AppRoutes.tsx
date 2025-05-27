@@ -1,86 +1,46 @@
-import React, { lazy } from "react";
+import React from "react";
 import { createBrowserRouter } from "react-router-dom";
 import PrivateRoute from "./PrivateRoute";
 import Login from "@/pages/auth/Login/Login";
+import UserGroupDetails from "@/pages/RolesAndAccess/UserGroupDetails";
 
-// Lazy-loaded components
-const Index = lazy(() => import("@/pages/Index"));
-const NotFound = lazy(() => import("@/pages/NotFound"));
-const Signup = lazy(() => import("@/pages/auth/SignUp/Signup"));
+import Index from "@/pages/Index";
+import NotFound from "@/pages/NotFound";
+import Signup from "@/pages/auth/SignUp/Signup";
 
-const UserManagement = lazy(() => import("@/pages/User/UserManagement"));
-const CompanyManagement = lazy(
-  () => import("@/pages/Company/CompanyManagement"),
-);
-const RolesAndAccess = lazy(
-  () => import("@/pages/RolesAndAccess/RolesAndAccess"),
-);
+import UserManagement from "@/pages/User/UserManagement";
+import CompanyManagement from "@/pages/Company/CompanyManagement";
+import RolesAndAccess from "@/pages/RolesAndAccess/RolesAndAccess";
 
-const AddNewUser = lazy(() =>
-  import("@/components/users/AddNewUser").then((module) => ({
-    default: module.AddNewUser,
-  })),
-);
-const AddNewCompany = lazy(() => import("@/pages/Company/AddNewCompany"));
-const RoleForm = lazy(() =>
-  import("@/pages/RolesAndAccess/RoleForm").then((module) => ({
-    default: module.RoleForm,
-  })),
-);
+import { AddNewUser } from "@/components/users/AddNewUser";
+import AddNewCompany from "@/pages/Company/AddNewCompany";
+import { RoleForm } from "@/pages/RolesAndAccess/RoleForm";
 
-const Simulation = lazy(() => import("@/pages/Simulation/Simulation"));
-const AddSimulation = lazy(
-  () => import("@/pages/Simulation/AddSimulation/AddSimulation"),
-);
+import Simulation from "@/pages/Simulation/Simulation";
+import AddSimulation from "@/pages/Simulation/AddSimulation/AddSimulation";
 
-const Packages = lazy(() => import("@/pages/Packages/Packages"));
-const AddNewPackage = lazy(() =>
-  import("@/pages/Packages/AddNewPackage").then((module) => ({
-    default: module.AddNewPackage,
-  })),
-);
-const ViewPackage = lazy(() =>
-  import("@/pages/Packages/ViewPackage").then((module) => ({
-    default: module.ViewPackage,
-  })),
-);
-const DataScience = lazy(() => import("@/pages/Packages/DataScience"));
+import Packages from "@/pages/Packages/Packages";
+import { AddNewPackage } from "@/pages/Packages/AddNewPackage";
+import { ViewPackage } from "@/pages/Packages/ViewPackage";
+import DataScience from "@/pages/Packages/DataScience";
 
-const Plans = lazy(() => import("@/pages/Packages/plans"));
+import Plans from "@/pages/Packages/plans";
 
-const Invitations = lazy(() =>
-  import("@/components/Invitations/Invitations").then((module) => ({
-    default: module.Invitations,
-  })),
-);
-const Payments = lazy(() => import("@/pages/Payments/Payments"));
-const UserAssignment = lazy(
-  () => import("@/pages/UserAssignment/UserAssignment"),
-);
-const Profile = lazy(() => import("@/components/Profile/Profile"));
+import { Invitations } from "@/components/Invitations/Invitations";
+import Payments from "@/pages/Payments/Payments";
+import UserAssignment from "@/pages/UserAssignment/UserAssignment";
+import Profile from "@/components/Profile/Profile";
 
-const ViewSkillMatrix = lazy(
-  () => import("@/pages/SkillMatrix/ViewSkillMatrix/ViewSkillMatrix"),
-);
-const SkillMatrix = lazy(() => import("@/pages/SkillMatrix/SkillMatrix"));
-const SkillMatrixView = lazy(
-  () => import("@/pages/SkillMatrix/SkillMatrixView"),
-);
-const Score = lazy(() => import("@/pages/SkillMatrix/ViewSkillMatrix/Score"));
+import ViewSkillMatrix from "@/pages/SkillMatrix/ViewSkillMatrix/ViewSkillMatrix";
+import SkillMatrix from "@/pages/SkillMatrix/SkillMatrix";
+import SkillMatrixView from "@/pages/SkillMatrix/SkillMatrixView";
+import Score from "@/pages/SkillMatrix/ViewSkillMatrix/Score";
 
-const UserDetails = lazy(() => import("@/pages/UserDetails/UserDetails"));
-const UserDashboard = lazy(() =>
-  import("@/pages/UserDashboard/UserDashboard").then((module) => ({
-    default: module.UserDashboard,
-  })),
-);
-const CaseStudyDetail = lazy(
-  () => import("@/components/user dashboard/CaseStudyDetail"),
-);
-const UserPreferences = lazy(
-  () => import("@/pages/UserPreferences/UserPreferences"),
-);
-const InnerPage = lazy(() => import("@/pages/InnerPage/InnerPage"));
+import UserDetails from "@/pages/UserDetails/UserDetails";
+import { UserDashboard } from "@/pages/UserDashboard/UserDashboard";
+import CaseStudyDetail from "@/components/user dashboard/CaseStudyDetail";
+import UserPreferences from "@/pages/UserPreferences/UserPreferences";
+import InnerPage from "@/pages/InnerPage/InnerPage";
 
 // Route definitions
 const router = createBrowserRouter([
@@ -113,9 +73,7 @@ const router = createBrowserRouter([
     path: "/user-role-&-access/:UserGroupId",
     element: (
       <PrivateRoute>
-        {/* TODO: Replace with actual component for user role and access detail
-        <div>User Role and Access Detail Page for UserGroupId</div> */}
-        <RoleForm />
+        <UserGroupDetails />
       </PrivateRoute>
     ),
   },

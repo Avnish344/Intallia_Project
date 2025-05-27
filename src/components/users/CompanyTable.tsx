@@ -385,10 +385,10 @@ export const CompanyTable = ({
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" sideOffset={4}>
                     <DropdownMenuItem onClick={() => alert(`Edit ${company.id}`)}>
-                      Edit Company
+                      Edit
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => handleDelete(company.id)}>
-                      Delete Company
+                      Delete
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>

@@ -1,7 +1,7 @@
 import React, { useEffect } from "react";
 import SidebarActions from "@/components/users/SidebarActions";
 import { MainLayout } from "@/components/layout/MainLayout";
-import { useForm } from "react-hook-form";
+// import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 // import { createPackage, updatePackage, getPackageById } from "@/axios/api"; // <-- Your API functions
@@ -79,7 +79,7 @@ export const AddNewPackage: React.FC<{
     },
     {
       variant: "outline",
-      text: "Save & Exit",
+      text: "Back",
       onClick: () => { handleSubmit(handleAddNewPackage)(); },
     },
     {
